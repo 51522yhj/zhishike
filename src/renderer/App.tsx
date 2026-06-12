@@ -26,6 +26,7 @@ import type {
   AppSnapshot,
   AssistantFrame,
   AssistantStreamEvent,
+  AnswerStyle,
   ConversationSessionWithTurns,
   ConversationTurn,
   DocumentRecord,
@@ -74,11 +75,20 @@ const providerPresets: Array<{ id: ModelProvider; label: string; baseUrl: string
   { id: "custom", label: "自定义", baseUrl: "https://example.com/v1", model: "your-model-name" }
 ];
 
+const answerStyles: Array<{ id: AnswerStyle; label: string; hint: string }> = [
+  { id: "concise", label: "简洁版", hint: "先结论，少铺垫" },
+  { id: "interviewer", label: "面试官友好版", hint: "自然口吻，突出贡献" },
+  { id: "technical", label: "技术深入版", hint: "细节、权衡、边界" },
+  { id: "project_review", label: "项目复盘版", hint: "背景、行动、结果" },
+  { id: "english", label: "英文版", hint: "English output" }
+];
+
 export default function App() {
   const isOverlay = new URLSearchParams(window.location.search).get("overlay") === "1";
   const [tab, setTab] = useState<Tab>("assistant");
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [personalPrompt, setPersonalPrompt] = useState("");
+  const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("concise");
   const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
   const [model, setModel] = useState<ModelSettings | null>(null);
   const [conversationTurns, setConversationTurns] = useState<ConversationTurn[]>([]);
@@ -241,6 +251,7 @@ export default function App() {
     const snapshot: AppSnapshot = await window.zhishik.snapshot();
     setDocuments(snapshot.documents);
     setPersonalPrompt(snapshot.personalPrompt ?? "");
+    setAnswerStyle(snapshot.answerStyle ?? "concise");
     setPrivacy(snapshot.privacy);
     setModel(snapshot.model);
     setConversationTurns(snapshot.conversationTurns);
@@ -253,6 +264,7 @@ export default function App() {
   async function refreshRuntimeSnapshot() {
     const snapshot = await window.zhishik.snapshot();
     setPersonalPrompt(snapshot.personalPrompt ?? "");
+    setAnswerStyle(snapshot.answerStyle ?? "concise");
     setPrivacy(snapshot.privacy);
     setConversationTurns(snapshot.conversationTurns);
     setConversationSessions(snapshot.conversationSessions);
@@ -757,6 +769,15 @@ export default function App() {
     setPersonalPrompt(saved ?? "");
   }
 
+  async function updateAnswerStyle(next: AnswerStyle) {
+    setAnswerStyle(next);
+    if (!window.zhishik.updateAnswerStyle) {
+      return;
+    }
+    const saved = await window.zhishik.updateAnswerStyle(next);
+    setAnswerStyle(saved ?? next);
+  }
+
   if (!privacy || !model || !assistant) {
     return <div className="boot">正在启动知时客...</div>;
   }
@@ -851,6 +872,8 @@ export default function App() {
             question={question}
             setQuestion={setQuestion}
             askAssistant={askAssistant}
+            answerStyle={answerStyle}
+            updateAnswerStyle={updateAnswerStyle}
             privacy={privacy}
             documents={activeDocs}
             sources={sources}
@@ -1223,6 +1246,8 @@ function AssistantView(props: {
   question: string;
   setQuestion: (value: string) => void;
   askAssistant: () => void;
+  answerStyle: AnswerStyle;
+  updateAnswerStyle: (style: AnswerStyle) => void;
   privacy: PrivacySettings;
   documents: DocumentRecord[];
   sources: Array<{ id: string; name: string }>;
@@ -1239,6 +1264,8 @@ function AssistantView(props: {
     question,
     setQuestion,
     askAssistant,
+    answerStyle,
+    updateAnswerStyle,
     privacy,
     documents,
     sources,
@@ -1266,6 +1293,20 @@ function AssistantView(props: {
           当前问题
         </div>
         <textarea value={question} onChange={(event) => setQuestion(event.target.value)} />
+        <div className="answer-style-picker">
+          {answerStyles.map((style) => (
+            <button
+              key={style.id}
+              className={answerStyle === style.id ? "selected" : ""}
+              onClick={() => updateAnswerStyle(style.id)}
+              title={style.hint}
+              type="button"
+            >
+              <span>{style.label}</span>
+              <small>{style.hint}</small>
+            </button>
+          ))}
+        </div>
         <button className="primary wide" onClick={askAssistant} disabled={busy}>
           <Sparkles size={17} />
           {busy ? "生成中..." : "结合知识库回答"}

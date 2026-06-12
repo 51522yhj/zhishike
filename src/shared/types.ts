@@ -1,5 +1,7 @@
 export type KnowledgeSpace = "resume" | "projects" | "enterprise";
 
+export type AnswerStyle = "concise" | "interviewer" | "technical" | "project_review" | "english";
+
 export type DocumentRecord = {
   id: string;
   name: string;
@@ -133,6 +135,7 @@ export type ConversationSessionWithTurns = ConversationSession & {
 export type AppSnapshot = {
   documents: DocumentRecord[];
   personalPrompt: string;
+  answerStyle: AnswerStyle;
   privacy: PrivacySettings;
   model: ModelSettings;
   conversationTurns: ConversationTurn[];

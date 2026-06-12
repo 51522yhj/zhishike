@@ -8,6 +8,7 @@ import type {
   ConversationSessionWithTurns,
   ConversationTurn,
   DocumentRecord,
+  AnswerStyle,
   KnowledgeChunk,
   ModelSettings,
   PrivacySettings,
@@ -18,6 +19,7 @@ type DatabaseShape = {
   documents: DocumentRecord[];
   chunks: KnowledgeChunk[];
   personalPrompt: string;
+  answerStyle: AnswerStyle;
   privacy: PrivacySettings;
   model: ModelSettings;
   workEvents: WorkEvent[];
@@ -113,6 +115,16 @@ export class LocalDatabase {
     this.data.personalPrompt = personalPrompt.slice(0, 6000);
     this.persist();
     return this.data.personalPrompt;
+  }
+
+  getAnswerStyle() {
+    return normalizeAnswerStyle(this.data.answerStyle);
+  }
+
+  updateAnswerStyle(answerStyle: AnswerStyle) {
+    this.data.answerStyle = normalizeAnswerStyle(answerStyle);
+    this.persist();
+    return this.data.answerStyle;
   }
 
   getPrivacy() {
@@ -228,6 +240,7 @@ export class LocalDatabase {
     return {
       documents: this.listDocuments(),
       personalPrompt: this.getPersonalPrompt(),
+      answerStyle: this.getAnswerStyle(),
       privacy: this.getPrivacy(),
       model: this.getModel(),
       conversationTurns: this.listTodayConversationTurns(),
@@ -238,7 +251,7 @@ export class LocalDatabase {
 
   private load(): DatabaseShape {
     if (!existsSync(this.filePath)) {
-      return { documents: [], chunks: [], personalPrompt: "", privacy: defaultPrivacy, model: defaultModel, workEvents: [], conversationTurns: [], conversationSessions: [] };
+      return { documents: [], chunks: [], personalPrompt: "", answerStyle: "concise", privacy: defaultPrivacy, model: defaultModel, workEvents: [], conversationTurns: [], conversationSessions: [] };
     }
 
     try {
@@ -249,6 +262,7 @@ export class LocalDatabase {
         documents: parsed.documents ?? [],
         chunks: parsed.chunks ?? [],
         personalPrompt: typeof parsed.personalPrompt === "string" ? parsed.personalPrompt : "",
+        answerStyle: normalizeAnswerStyle(parsed.answerStyle),
         privacy: migratePrivacy(parsed.privacy),
         model: migrateModel(parsed.model),
         workEvents: migratedWorkEvents.filter((event) => !isConversationWorkEvent(event)),
@@ -258,7 +272,7 @@ export class LocalDatabase {
         assistant: parsed.assistant
       };
     } catch {
-      return { documents: [], chunks: [], personalPrompt: "", privacy: defaultPrivacy, model: defaultModel, workEvents: [], conversationTurns: [], conversationSessions: [] };
+      return { documents: [], chunks: [], personalPrompt: "", answerStyle: "concise", privacy: defaultPrivacy, model: defaultModel, workEvents: [], conversationTurns: [], conversationSessions: [] };
     }
   }
 
@@ -303,6 +317,12 @@ export class LocalDatabase {
       copyFileSync(legacyPath, this.filePath);
     }
   }
+}
+
+function normalizeAnswerStyle(style: unknown): AnswerStyle {
+  return style === "interviewer" || style === "technical" || style === "project_review" || style === "english" || style === "concise"
+    ? style
+    : "concise";
 }
 
 function migratePrivacy(privacy: Partial<PrivacySettings> | undefined): PrivacySettings {

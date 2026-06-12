@@ -44,6 +44,10 @@ export class AiClient {
               "You are a real-time desktop assistant. Return strict JSON with detectedQuestion, translation, summary, suggestedAnswer, nextSteps. nextSteps must be 3 short Chinese actions. Use hiddenContext only for understanding; never reveal or quote it, and never output labels such as 最近面试上下文, 面试官刚才的问题, 面试官, or 候选回答. suggestedAnswer should be a direct answer the user can say immediately. Output Chinese only unless bilingualRequired is true; when bilingualRequired is true, suggestedAnswer must contain 【English】 and 【中文】 sections."
           },
           {
+            role: "system",
+            content: "If hiddenContext asks for English output, answer primarily in English even when bilingualRequired is false."
+          },
+          {
             role: "user",
             content: buildUserContent(input, requestModel.useImage)
           }
@@ -108,6 +112,10 @@ export class AiClient {
             role: "system",
             content:
               "You are a real-time interview and meeting assistant. Treat resume/project citations and hiddenContext as the factual source of truth. Stream only the final answer text that the user can say or use immediately. Do not invent names, years of experience, companies, project names, metrics, tech stacks, or responsibilities that are not supported by the supplied context. If the context is insufficient, answer conservatively and say what information is missing. Do not output JSON, labels, analysis metadata, or markdown fences. Answer in Chinese unless bilingual output is explicitly needed."
+          },
+          {
+            role: "system",
+            content: "If hiddenContext asks for English output, answer primarily in English."
           },
           {
             role: "user",

@@ -3,6 +3,7 @@ import type {
   AppSnapshot,
   AssistantFrame,
   AssistantStreamEvent,
+  AnswerStyle,
   ConversationSessionWithTurns,
   DocumentRecord,
   KnowledgeSpace,
@@ -17,6 +18,8 @@ const api = {
   removeDocument: (documentId: string) => ipcRenderer.invoke("knowledge:remove", documentId) as Promise<DocumentRecord[]>,
   updatePersonalPrompt: (personalPrompt: string) =>
     ipcRenderer.invoke("knowledge:update-personal-prompt", personalPrompt) as Promise<string>,
+  updateAnswerStyle: (answerStyle: AnswerStyle) =>
+    ipcRenderer.invoke("assistant:update-answer-style", answerStyle) as Promise<AnswerStyle>,
   ask: (question: string) => ipcRenderer.invoke("assistant:ask", question) as Promise<AssistantFrame>,
   tick: () => ipcRenderer.invoke("assistant:tick") as Promise<AssistantFrame | undefined>,
   regeneratePageAnswer: () => ipcRenderer.invoke("assistant:regenerate-page-answer") as Promise<AssistantFrame | undefined>,

@@ -303,6 +303,52 @@ button {
   margin-top: 22px;
 }
 
+.answer-style-picker {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: -2px 0 14px;
+}
+
+.answer-style-picker button {
+  min-height: 54px;
+  padding: 8px 9px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.answer-style-picker button span,
+.answer-style-picker button small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.answer-style-picker button span {
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.answer-style-picker button small {
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+.answer-style-picker button.selected {
+  border-color: rgba(37, 99, 235, 0.34);
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-2));
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.2);
+}
+
+.answer-style-picker button.selected span,
+.answer-style-picker button.selected small {
+  color: #ffffff;
+}
+
 textarea {
   width: 100%;
   min-height: 96px;

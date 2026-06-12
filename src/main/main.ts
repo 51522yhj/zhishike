@@ -20,7 +20,7 @@ import { KnowledgeEngine } from "./knowledge";
 import { ScreenCaptureService } from "./screenCapture";
 import { getRecordFilePath } from "./storage";
 import { getActiveWindowTitle } from "./windowContext";
-import type { AssistantFrame, AssistantStreamEvent, ConversationTurn, KnowledgeSpace, ModelSettings, PrivacySettings } from "../shared/types";
+import type { AnswerStyle, AssistantFrame, AssistantStreamEvent, ConversationTurn, KnowledgeSpace, ModelSettings, PrivacySettings } from "../shared/types";
 
 let mainWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
@@ -390,6 +390,9 @@ function registerIpc() {
   });
   ipcMain.handle("knowledge:update-personal-prompt", (_event, personalPrompt: string) => {
     return database.updatePersonalPrompt(personalPrompt);
+  });
+  ipcMain.handle("assistant:update-answer-style", (_event, answerStyle: AnswerStyle) => {
+    return database.updateAnswerStyle(answerStyle);
   });
 
   ipcMain.handle("assistant:ask", async (_event, question: string) => {
@@ -950,10 +953,22 @@ function buildPersonalHiddenContext(extra = "") {
   const personalPrompt = database.getPersonalPrompt().trim();
   return [
     personalPrompt ? `Personal profile and answer preferences:\n${personalPrompt}` : "",
+    `Answer style:\n${answerStyleInstruction(database.getAnswerStyle())}`,
     extra.trim()
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+function answerStyleInstruction(style: AnswerStyle) {
+  const instructions: Record<AnswerStyle, string> = {
+    concise: "简洁版：先给结论，控制篇幅，少铺垫，回答适合直接复制或口述。",
+    interviewer: "面试官友好版：用自然候选人口吻回答，突出动机、个人贡献、协作和结果，避免像背稿。",
+    technical: "技术深入版：补充关键技术细节、方案权衡、边界条件、性能/稳定性考虑和可落地实现。",
+    project_review: "项目复盘版：按背景、目标、行动、结果、复盘展开，突出问题、取舍、数据结果和改进。",
+    english: "英文版：answer primarily in fluent English. Keep the same factual constraints, and only add Chinese when the user explicitly asks."
+  };
+  return instructions[style];
 }
 
 function createAssistantStreamFactory(sender: Electron.WebContents): ConversationStreamFactory {
