@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 196" role="img" aria-label="知时客 Logo">
+  <defs>
+    <linearGradient id="logo-bg" x1="34" y1="18" x2="162" y2="178" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#93c5fd"/>
+      <stop offset="0.56" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="logo-warm" x1="75" y1="43" x2="146" y2="142" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e0f2fe"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="18" y="18" width="160" height="160" rx="34" fill="#eff6ff"/>
+  <rect x="31" y="31" width="134" height="134" rx="27" fill="url(#logo-bg)"/>
+  <path d="M62 118c22 13 44 13 66 0V58c-22 13-44 13-66 0v60Z" fill="#f4fbfb" opacity="0.96"/>
+  <path d="M94 65c13 4 25 3 38-4v63c-13 7-25 8-38 4V65Z" fill="#d9f6f3"/>
+  <path d="M132 61c9-6 18-8 28-7v63c-10-1-19 1-28 7V61Z" fill="#f4fbfb" opacity="0.9"/>
+  <path d="M62 58c11 7 21 9 32 7v63c-11 1-21-1-32-8V58Z" fill="#f4fbfb" opacity="0.86"/>
+  <path d="M144 45a39 39 0 0 1 15 70" fill="none" stroke="#0f172a" stroke-width="11" stroke-linecap="round" opacity="0.24"/>
+  <circle cx="144" cy="45" r="14" fill="url(#logo-warm)"/>
+  <path d="M144 37v9l7 5" fill="none" stroke="#0f172a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M74 92h28M74 108h21M141 83h16M141 98h16" stroke="#1d4ed8" stroke-width="6" stroke-linecap="round"/>
+
+  <text x="212" y="98" fill="#0f172a" font-size="58" font-weight="800" font-family="Microsoft YaHei, PingFang SC, Inter, sans-serif">知时客</text>
+  <text x="216" y="139" fill="#475569" font-size="22" font-weight="600" font-family="Microsoft YaHei, PingFang SC, Inter, sans-serif">实时知识桌面助手</text>
+  <path d="M216 156h178" stroke="#2563eb" stroke-width="8" stroke-linecap="round"/>
+  <path d="M414 156h52" stroke="#06b6d4" stroke-width="8" stroke-linecap="round"/>
+</svg>

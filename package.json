@@ -1,0 +1,89 @@
+{
+  "name": "zhishik",
+  "version": "1.0.0",
+  "description": "Windows realtime knowledge-base desktop assistant MVP.",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"tsc -p tsconfig.main.json --watch\" \"vite --host 127.0.0.1\" \"wait-on dist/main/main.js http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "build": "tsc -p tsconfig.main.json && vite build && node -e \"require('node:fs').cpSync('src/assets','dist/assets',{recursive:true})\"",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip --arm64 --x64",
+    "dist:win": "npm run build && node scripts/package-win-folder.mjs",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "preview": "cross-env ELECTRON_START_URL=dist/renderer/index.html electron ."
+  },
+  "build": {
+    "appId": "com.zhishike.desktop",
+    "productName": "知时客",
+    "artifactName": "zhishike-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "eng.traineddata",
+        "to": "tessdata/eng.traineddata"
+      },
+      {
+        "from": "chi_sim.traineddata",
+        "to": "tessdata/chi_sim.traineddata"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "concurrently": "^10.0.3",
+    "cross-env": "^10.1.0",
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^1.17.0",
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tesseract.js": "^7.0.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "wait-on": "^9.0.10",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.2"
+  }
+}
