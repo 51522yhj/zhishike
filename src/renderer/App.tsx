@@ -105,6 +105,7 @@ export default function App() {
   const [recognizedTranscript, setRecognizedTranscript] = useState("");
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [streamedAnswer, setStreamedAnswer] = useState("");
+  const pendingAnswerStyleRef = useRef<AnswerStyle | null>(null);
   const liveTranscriptRef = useRef("");
   const answerStreamTimerRef = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -264,7 +265,9 @@ export default function App() {
   async function refreshRuntimeSnapshot() {
     const snapshot = await window.zhishik.snapshot();
     setPersonalPrompt(snapshot.personalPrompt ?? "");
-    setAnswerStyle(snapshot.answerStyle ?? "concise");
+    if (!pendingAnswerStyleRef.current) {
+      setAnswerStyle(snapshot.answerStyle ?? "concise");
+    }
     setPrivacy(snapshot.privacy);
     setConversationTurns(snapshot.conversationTurns);
     setConversationSessions(snapshot.conversationSessions);
@@ -741,6 +744,9 @@ export default function App() {
     const settings = await window.zhishik.updatePrivacy(next);
     setPrivacy(settings);
     const snapshot = await window.zhishik.snapshot();
+    if (!pendingAnswerStyleRef.current) {
+      setAnswerStyle(snapshot.answerStyle ?? "concise");
+    }
     setAssistant(snapshot.assistant);
     setConversationTurns(snapshot.conversationTurns);
     setConversationSessions(snapshot.conversationSessions);
@@ -770,12 +776,18 @@ export default function App() {
   }
 
   async function updateAnswerStyle(next: AnswerStyle) {
+    pendingAnswerStyleRef.current = next;
     setAnswerStyle(next);
     if (!window.zhishik.updateAnswerStyle) {
+      pendingAnswerStyleRef.current = null;
       return;
     }
-    const saved = await window.zhishik.updateAnswerStyle(next);
-    setAnswerStyle(saved ?? next);
+    try {
+      const saved = await window.zhishik.updateAnswerStyle(next);
+      setAnswerStyle(saved ?? next);
+    } finally {
+      pendingAnswerStyleRef.current = null;
+    }
   }
 
   if (!privacy || !model || !assistant) {
@@ -946,6 +958,7 @@ function OverlayAssistant(props: {
   const [regenerating, setRegenerating] = useState(false);
   const { liveTranscript, recognizedTranscript, analysisLoading, streamingTurns } = props;
   const overlayDragRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const pendingOverlayAnswerStyleRef = useRef<AnswerStyle | null>(null);
 
   useEffect(() => {
     const clearPrivacy = window.zhishik.onPrivacyChanged((settings) => {
@@ -963,7 +976,9 @@ function OverlayAssistant(props: {
     const snapshot = await window.zhishik.snapshot();
     setAssistant(snapshot.assistant);
     setPrivacy(snapshot.privacy);
-    setAnswerStyle(snapshot.answerStyle ?? "concise");
+    if (!pendingOverlayAnswerStyleRef.current) {
+      setAnswerStyle(snapshot.answerStyle ?? "concise");
+    }
     setConversationTurns(snapshot.conversationTurns);
   }
 
@@ -983,7 +998,9 @@ function OverlayAssistant(props: {
       const snapshot = await window.zhishik.snapshot();
       setAssistant(snapshot.assistant);
       setPrivacy(snapshot.privacy);
-      setAnswerStyle(snapshot.answerStyle ?? "concise");
+      if (!pendingOverlayAnswerStyleRef.current) {
+        setAnswerStyle(snapshot.answerStyle ?? "concise");
+      }
       setConversationTurns(snapshot.conversationTurns);
     }, intervalMs);
 
@@ -1008,12 +1025,18 @@ function OverlayAssistant(props: {
   }
 
   async function updateOverlayAnswerStyle(next: AnswerStyle) {
+    pendingOverlayAnswerStyleRef.current = next;
     setAnswerStyle(next);
     if (!window.zhishik.updateAnswerStyle) {
+      pendingOverlayAnswerStyleRef.current = null;
       return;
     }
-    const saved = await window.zhishik.updateAnswerStyle(next);
-    setAnswerStyle(saved ?? next);
+    try {
+      const saved = await window.zhishik.updateAnswerStyle(next);
+      setAnswerStyle(saved ?? next);
+    } finally {
+      pendingOverlayAnswerStyleRef.current = null;
+    }
   }
 
   async function endOverlayVoiceSession() {

@@ -157,7 +157,7 @@ button {
 .workspace {
   position: relative;
   min-width: 0;
-  padding: 28px 30px 98px;
+  padding: 28px 30px 160px;
   overflow: auto;
 }
 
@@ -973,19 +973,20 @@ textarea {
 
 .subtitle {
   position: fixed;
-  left: 50%;
+  left: calc(252px + 30px);
   bottom: 20px;
   z-index: 20;
   display: grid;
-  grid-template-columns: 24px minmax(280px, 740px);
+  grid-template-columns: 24px minmax(0, 1fr);
   gap: 10px;
-  width: min(780px, calc(100vw - 80px));
+  width: min(760px, calc(100vw - 252px - 310px));
+  max-height: 86px;
+  overflow: hidden;
   padding: 13px 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   background: rgba(10, 14, 18, 0.9);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
-  transform: translateX(-50%);
   backdrop-filter: blur(18px);
 }
 
@@ -1005,6 +1006,10 @@ textarea {
 .subtitle strong {
   margin-top: 3px;
   color: #f4fbfb;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .monitor-fab {
@@ -1914,6 +1919,7 @@ textarea:focus,
   }
 
   .subtitle {
+    left: 14px;
     width: calc(100vw - 28px);
     grid-template-columns: 20px minmax(0, 1fr);
   }
