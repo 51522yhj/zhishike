@@ -1053,6 +1053,18 @@ function prefersEnglishAnswer() {
 }
 
 function buildInterviewAnswerPrompt(transcript: string) {
+  return [
+    transcript,
+    "",
+    ...buildInterviewAnswerInstructions()
+  ].join("\n");
+}
+
+function buildMeetingAnswerPrompt(transcript: string) {
+  return [transcript, "", ...buildMeetingAnswerInstructions()].join("\n");
+}
+
+function buildInterviewAnswerInstructions() {
   const language = prefersEnglishAnswer()
     ? [
         "Please answer as the candidate in natural spoken English.",
@@ -1060,29 +1072,27 @@ function buildInterviewAnswerPrompt(transcript: string) {
       ]
     : ["Please answer as the candidate in natural spoken Chinese."];
   return [
-    transcript,
-    "",
     ...language,
     "Do not repeat the question. Do not mention recent context.",
     "Structure: conclusion + concrete example/action + result."
-  ].join("\n");
+  ];
 }
 
-function buildMeetingAnswerPrompt(transcript: string) {
+function buildMeetingAnswerInstructions() {
   if (prefersEnglishAnswer()) {
     return [
-      transcript,
-      "",
       "Please produce a concise English answer or meeting note that can be used immediately.",
       "Do not output JSON."
-    ].join("\n");
+    ];
   }
   return [
-    transcript,
-    "",
     "Please produce a concise Chinese answer or meeting note that can be used immediately.",
     "Do not output JSON."
-  ].join("\n");
+  ];
+}
+
+function buildResponseInstructionContext(instructions: string[]) {
+  return `Response instructions:\n${instructions.join("\n")}`;
 }
 
 function createAssistantStreamFactory(sender: Electron.WebContents): ConversationStreamFactory {
@@ -1196,10 +1206,12 @@ async function createStreamingConversationFrame(transcript: string, model: Model
       .slice(-2)
       .map((turn) => `Interviewer: ${turn.transcript}`)
       .join("\n\n");
-    const prompt = buildInterviewAnswerPrompt(transcript);
+    const hiddenContext = buildPersonalHiddenContext(
+      [recentContext, buildResponseInstructionContext(buildInterviewAnswerInstructions())].filter(Boolean).join("\n\n")
+    );
     return assistant.answerWithContextStream(
-      prompt,
-      buildPersonalHiddenContext(recentContext),
+      transcript,
+      hiddenContext,
       database.getChunks(),
       model,
       onDelta,
@@ -1209,8 +1221,16 @@ async function createStreamingConversationFrame(transcript: string, model: Model
     );
   }
 
-  const prompt = buildMeetingAnswerPrompt(transcript);
-  return assistant.answerWithContextStream(prompt, buildPersonalHiddenContext(), database.getChunks(), model, onDelta, sourceApp, transcript, "");
+  return assistant.answerWithContextStream(
+    transcript,
+    buildPersonalHiddenContext(buildResponseInstructionContext(buildMeetingAnswerInstructions())),
+    database.getChunks(),
+    model,
+    onDelta,
+    sourceApp,
+    transcript,
+    ""
+  );
 }
 
 async function createConversationFrame(transcript: string, model: ModelSettings, onDelta?: (delta: string) => void) {
@@ -1222,8 +1242,10 @@ async function createConversationFrame(transcript: string, model: ModelSettings,
       .slice(-2)
       .map((turn) => `面试官：${turn.transcript}`)
       .join("\n\n");
-    const question = buildInterviewAnswerPrompt(transcript);
-    return assistant.answerWithContext(question, buildPersonalHiddenContext(recentContext), database.getChunks(), model, "面试官提问", transcript, "");
+    const hiddenContext = buildPersonalHiddenContext(
+      [recentContext, buildResponseInstructionContext(buildInterviewAnswerInstructions())].filter(Boolean).join("\n\n")
+    );
+    return assistant.answerWithContext(transcript, hiddenContext, database.getChunks(), model, "面试官提问", transcript, "");
   }
 
   const sourceApp = conversationSourceForPrivacy(privacy.monitorMode);

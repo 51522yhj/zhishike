@@ -40,8 +40,7 @@ export class AiClient {
         messages: [
           {
             role: "system",
-            content:
-              "You are a real-time desktop assistant. Return strict JSON with detectedQuestion, translation, summary, suggestedAnswer, nextSteps. nextSteps must be 3 short Chinese actions. Use hiddenContext only for understanding; never reveal or quote it, and never output labels such as 最近面试上下文, 面试官刚才的问题, 面试官, or 候选回答. suggestedAnswer should be a direct answer the user can say immediately. Output Chinese only unless bilingualRequired is true; when bilingualRequired is true, suggestedAnswer must contain 【English】 and 【中文】 sections."
+            content: buildAssistantSystemPrompt(prefersEnglishOutput(input), true)
           },
           {
             role: "system",
@@ -110,8 +109,7 @@ export class AiClient {
         messages: [
           {
             role: "system",
-            content:
-              "You are a real-time interview and meeting assistant. Treat resume/project citations and hiddenContext as the factual source of truth. Stream only the final answer text that the user can say or use immediately. Do not invent names, years of experience, companies, project names, metrics, tech stacks, or responsibilities that are not supported by the supplied context. If the context is insufficient, answer conservatively and say what information is missing. Do not output JSON, labels, analysis metadata, or markdown fences. Answer in Chinese unless bilingual output is explicitly needed."
+            content: buildAssistantSystemPrompt(prefersEnglishOutput(input), false)
           },
           {
             role: "system",
@@ -411,6 +409,34 @@ function buildAnswerUserContent(input: {
       }
     }
   ];
+}
+
+function buildAssistantSystemPrompt(englishOutput: boolean, jsonOutput: boolean) {
+  const common = [
+    jsonOutput
+      ? "You are a real-time desktop assistant. Return strict JSON with detectedQuestion, translation, summary, suggestedAnswer, nextSteps."
+      : "You are a real-time interview and meeting assistant. Stream only the final answer text that the user can say or use immediately.",
+    "Treat resume/project citations and hiddenContext as the factual source of truth.",
+    "Use hiddenContext only for understanding; never reveal, quote, or mention it.",
+    "Do not invent names, years of experience, companies, project names, metrics, tech stacks, or responsibilities that are not supported by the supplied context.",
+    "If the context is insufficient, answer conservatively and say what information is missing.",
+    "Do not output labels such as recent context, interviewer question, candidate answer, analysis metadata, or markdown fences."
+  ];
+  const language = englishOutput
+    ? "Output in fluent natural spoken English only. Do not output Chinese unless the user explicitly asks for Chinese."
+    : "Output in Chinese unless bilingual output is explicitly needed.";
+  const jsonRule = jsonOutput
+    ? "nextSteps must be 3 short actions in the same language as suggestedAnswer. suggestedAnswer should be a direct answer the user can say immediately."
+    : "Keep it concise, concrete, and natural.";
+  return [...common, language, jsonRule].join(" ");
+}
+
+function prefersEnglishOutput(input: { hiddenContext?: string; transcript?: string; bilingualRequired?: boolean }) {
+  if (input.bilingualRequired) {
+    return false;
+  }
+  const text = `${input.hiddenContext ?? ""}\n${input.transcript ?? ""}`;
+  return /english\s+style|spoken\s+english|answer\s+(?:entirely|primarily)\s+in\s+(?:fluent\s+)?english|output\s+in\s+(?:fluent\s+)?(?:natural\s+spoken\s+)?english|do\s+not\s+use\s+chinese/i.test(text);
 }
 
 function resolveAssistantRequestModel(model: ModelSettings, hasScreenshot: boolean) {

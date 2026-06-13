@@ -957,7 +957,7 @@ export default function App() {
         <Captions size={18} />
         <div>
           <span>{assistant.transcript}</span>
-          <strong>{assistant.translation}</strong>
+          <strong>{assistantDisplayHeadline(assistant)}</strong>
         </div>
       </motion.div>
       <button className="monitor-fab" onClick={() => updatePrivacy({ paused: !privacy.paused })}>
@@ -1218,7 +1218,7 @@ function OverlayAssistant(props: {
       >
         <div className="overlay-top">
           <span>{privacy.paused ? "已暂停" : assistant.sourceApp}</span>
-          <strong>{isAnswerMode ? cleanOverlayQuestion(assistant.detectedQuestion || assistant.transcript) : assistant.translation}</strong>
+          <strong>{assistantDisplayHeadline(assistant, isAnswerMode)}</strong>
         </div>
         <div className="overlay-controls">
           <label>
@@ -2237,12 +2237,27 @@ function mergeLiveTranscript(previous: string, next: string) {
 
 function cleanOverlayQuestion(text: string) {
   const cleaned = text
+    .replace(/Please answer as the candidate in natural spoken (?:English|Chinese)\.?/gi, "")
+    .replace(/Do not use Chinese unless the user explicitly asks for Chinese\.?/gi, "")
+    .replace(/Do not repeat the question\.?/gi, "")
+    .replace(/Do not mention recent context\.?/gi, "")
+    .replace(/Structure:\s*conclusion\s*\+\s*concrete example\/action\s*\+\s*result\.?/gi, "")
+    .replace(/Please produce a concise (?:English|Chinese) answer or meeting note that can be used immediately\.?/gi, "")
+    .replace(/Do not output JSON\.?/gi, "")
+    .replace(/Response instructions:\s*/gi, "")
     .replace(/最近重点[:：]?/g, "")
     .replace(/请识别当前屏幕中的题目，?直接给出答案、?解题步骤和最终结论。?/g, "")
     .replace(/如果屏幕不是题目，?请说明需要补充哪些题目信息。?/g, "")
     .replace(/[\/\s]+/g, " ")
     .trim();
   return cleaned || "识别题目中";
+}
+
+function assistantDisplayHeadline(frame: AssistantFrame, answerMode = false) {
+  const source = answerMode
+    ? frame.detectedQuestion || frame.transcript || frame.translation
+    : frame.transcript || frame.detectedQuestion || frame.translation;
+  return cleanOverlayQuestion(source);
 }
 
 function isXfyunMaasEndpoint(endpoint: string) {

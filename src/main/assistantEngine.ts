@@ -176,7 +176,7 @@ export class AssistantEngine {
       createdAt: new Date().toISOString(),
       sourceApp: input.sourceApp,
       transcript: input.transcript || input.screenText.slice(0, 220) || question,
-      translation: input.model.translationEnabled ? llmResult?.translation || question : llmResult?.summary || fallback.summary,
+      translation: input.model.translationEnabled ? llmResult?.translation || input.transcript || question : input.transcript || question,
       summary: llmResult?.summary || fallback.summary,
       detectedQuestion: llmResult?.detectedQuestion || question,
       suggestedAnswer,
