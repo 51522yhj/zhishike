@@ -106,6 +106,7 @@ export default function App() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [streamedAnswer, setStreamedAnswer] = useState("");
   const pendingAnswerStyleRef = useRef<AnswerStyle | null>(null);
+  const answerStyleSavePromiseRef = useRef<Promise<AnswerStyle | void> | null>(null);
   const liveTranscriptRef = useRef("");
   const answerStreamTimerRef = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -741,6 +742,9 @@ export default function App() {
   }
 
   async function updatePrivacy(next: Partial<PrivacySettings>) {
+    if (next.paused === false || next.monitorMode) {
+      await answerStyleSavePromiseRef.current?.catch(() => undefined);
+    }
     const settings = await window.zhishik.updatePrivacy(next);
     setPrivacy(settings);
     const snapshot = await window.zhishik.snapshot();
@@ -782,11 +786,16 @@ export default function App() {
       pendingAnswerStyleRef.current = null;
       return;
     }
+    const savePromise = window.zhishik.updateAnswerStyle(next);
+    answerStyleSavePromiseRef.current = savePromise;
     try {
-      const saved = await window.zhishik.updateAnswerStyle(next);
+      const saved = await savePromise;
       setAnswerStyle(saved ?? next);
     } finally {
-      pendingAnswerStyleRef.current = null;
+      if (answerStyleSavePromiseRef.current === savePromise) {
+        answerStyleSavePromiseRef.current = null;
+        pendingAnswerStyleRef.current = null;
+      }
     }
   }
 
@@ -959,6 +968,7 @@ function OverlayAssistant(props: {
   const { liveTranscript, recognizedTranscript, analysisLoading, streamingTurns } = props;
   const overlayDragRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const pendingOverlayAnswerStyleRef = useRef<AnswerStyle | null>(null);
+  const overlayAnswerStyleSavePromiseRef = useRef<Promise<AnswerStyle | void> | null>(null);
 
   useEffect(() => {
     const clearPrivacy = window.zhishik.onPrivacyChanged((settings) => {
@@ -1019,6 +1029,9 @@ function OverlayAssistant(props: {
   const isAnswerMode = privacy.monitorMode === "screen";
 
   async function updateOverlayPrivacy(next: Partial<PrivacySettings>) {
+    if (next.paused === false || next.monitorMode) {
+      await overlayAnswerStyleSavePromiseRef.current?.catch(() => undefined);
+    }
     const settings = await window.zhishik.updatePrivacy(next);
     setPrivacy(settings);
     await refreshOverlaySnapshot();
@@ -1031,11 +1044,16 @@ function OverlayAssistant(props: {
       pendingOverlayAnswerStyleRef.current = null;
       return;
     }
+    const savePromise = window.zhishik.updateAnswerStyle(next);
+    overlayAnswerStyleSavePromiseRef.current = savePromise;
     try {
-      const saved = await window.zhishik.updateAnswerStyle(next);
+      const saved = await savePromise;
       setAnswerStyle(saved ?? next);
     } finally {
-      pendingOverlayAnswerStyleRef.current = null;
+      if (overlayAnswerStyleSavePromiseRef.current === savePromise) {
+        overlayAnswerStyleSavePromiseRef.current = null;
+        pendingOverlayAnswerStyleRef.current = null;
+      }
     }
   }
 
