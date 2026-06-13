@@ -213,6 +213,16 @@ export class LocalDatabase {
     return this.data.conversationTurns.filter((turn) => turn.createdAt.slice(0, 10) === day);
   }
 
+  listActiveConversationTurns() {
+    const session = this.getActiveConversationSession();
+    if (!session || session.endedAt) {
+      return [];
+    }
+    return session.turnIds
+      .map((turnId) => this.data.conversationTurns.find((turn) => turn.id === turnId))
+      .filter((turn): turn is ConversationTurn => Boolean(turn));
+  }
+
   clearTodayConversationTurns(date = new Date()) {
     const day = date.toISOString().slice(0, 10);
     this.data.conversationTurns = this.data.conversationTurns.filter((turn) => turn.createdAt.slice(0, 10) !== day);
@@ -243,7 +253,7 @@ export class LocalDatabase {
       answerStyle: this.getAnswerStyle(),
       privacy: this.getPrivacy(),
       model: this.getModel(),
-      conversationTurns: this.listTodayConversationTurns(),
+      conversationTurns: this.listActiveConversationTurns(),
       conversationSessions: this.listConversationSessions(),
       assistant: this.getAssistant()
     };

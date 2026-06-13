@@ -605,8 +605,10 @@ function registerIpc() {
     database.updateConversationSessionTitle(input.sessionId, input.title)
   );
   ipcMain.handle("conversation:end-session", () => {
+    const mode = database.getPrivacy().monitorMode;
     database.endActiveConversationSession();
     interviewQuestionBuffer = "";
+    database.saveAssistant(buildModePlaceholder(mode));
     return database.listConversationSessions();
   });
 
