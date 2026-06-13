@@ -729,9 +729,15 @@ function broadcastPrivacy(settings: PrivacySettings) {
   }
 }
 
-function updatePrivacyAndBroadcast(next: Partial<PrivacySettings>) {
+type PrivacyUpdateInput = Partial<PrivacySettings> & { answerStyle?: AnswerStyle };
+
+function updatePrivacyAndBroadcast(next: PrivacyUpdateInput) {
   const previous = database.getPrivacy();
-  const normalizedNext = { ...next };
+  const { answerStyle, ...privacyNext } = next;
+  if (answerStyle) {
+    database.updateAnswerStyle(answerStyle);
+  }
+  const normalizedNext = { ...privacyNext };
   if (normalizedNext.monitorMode === "smart") {
     normalizedNext.monitorMode = "screen";
   }

@@ -744,9 +744,10 @@ export default function App() {
     silentOutput.connect(audioContext.destination);
   }
 
-  async function updatePrivacy(next: Partial<PrivacySettings>) {
+  async function updatePrivacy(next: Partial<PrivacySettings> & { answerStyle?: AnswerStyle }) {
     if (next.paused === false || next.monitorMode) {
       await answerStyleSavePromiseRef.current?.catch(() => undefined);
+      next = { ...next, answerStyle: answerStyleRef.current };
       if (window.zhishik.updateAnswerStyle) {
         await window.zhishik.updateAnswerStyle(answerStyleRef.current).catch(() => undefined);
       }
@@ -1040,9 +1041,10 @@ function OverlayAssistant(props: {
   const showConversation = Boolean(activeConversationMode) && displayedConversationTurns.length > 0;
   const isAnswerMode = privacy.monitorMode === "screen";
 
-  async function updateOverlayPrivacy(next: Partial<PrivacySettings>) {
+  async function updateOverlayPrivacy(next: Partial<PrivacySettings> & { answerStyle?: AnswerStyle }) {
     if (next.paused === false || next.monitorMode) {
       await overlayAnswerStyleSavePromiseRef.current?.catch(() => undefined);
+      next = { ...next, answerStyle: overlayAnswerStyleRef.current };
       if (window.zhishik.updateAnswerStyle) {
         await window.zhishik.updateAnswerStyle(overlayAnswerStyleRef.current).catch(() => undefined);
       }

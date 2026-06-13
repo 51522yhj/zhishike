@@ -41,7 +41,8 @@ const api = {
     return () => ipcRenderer.removeListener("assistant:stream", listener);
   },
   listCaptureSources: () => ipcRenderer.invoke("capture:sources") as Promise<Array<{ id: string; name: string }>>,
-  updatePrivacy: (next: Partial<PrivacySettings>) => ipcRenderer.invoke("privacy:update", next) as Promise<PrivacySettings>,
+  updatePrivacy: (next: Partial<PrivacySettings> & { answerStyle?: AnswerStyle }) =>
+    ipcRenderer.invoke("privacy:update", next) as Promise<PrivacySettings>,
   updateModel: (next: Partial<ModelSettings>) => ipcRenderer.invoke("model:update", next) as Promise<ModelSettings>,
   updateConversationTitle: (input: { sessionId: string; title: string }) =>
     ipcRenderer.invoke("conversation:update-title", input) as Promise<ConversationSessionWithTurns[]>,
