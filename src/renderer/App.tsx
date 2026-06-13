@@ -747,10 +747,6 @@ export default function App() {
   async function updatePrivacy(next: Partial<PrivacySettings> & { answerStyle?: AnswerStyle }) {
     if (next.paused === false || next.monitorMode) {
       await answerStyleSavePromiseRef.current?.catch(() => undefined);
-      next = { ...next, answerStyle: answerStyleRef.current };
-      if (window.zhishik.updateAnswerStyle) {
-        await window.zhishik.updateAnswerStyle(answerStyleRef.current).catch(() => undefined);
-      }
     }
     const settings = await window.zhishik.updatePrivacy(next);
     setPrivacy(settings);
@@ -1044,10 +1040,6 @@ function OverlayAssistant(props: {
   async function updateOverlayPrivacy(next: Partial<PrivacySettings> & { answerStyle?: AnswerStyle }) {
     if (next.paused === false || next.monitorMode) {
       await overlayAnswerStyleSavePromiseRef.current?.catch(() => undefined);
-      next = { ...next, answerStyle: overlayAnswerStyleRef.current };
-      if (window.zhishik.updateAnswerStyle) {
-        await window.zhishik.updateAnswerStyle(overlayAnswerStyleRef.current).catch(() => undefined);
-      }
     }
     const settings = await window.zhishik.updatePrivacy(next);
     setPrivacy(settings);
