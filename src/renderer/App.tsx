@@ -375,7 +375,6 @@ export default function App() {
           streamEventToTurn(event, event.text ?? `${current.find((turn) => turn.id === event.id)?.suggestedAnswer ?? ""}${event.delta ?? ""}`)
         )
       );
-      setStreamedAnswer(event.text ?? "");
       return;
     }
 
@@ -2148,7 +2147,6 @@ function monitorModeLabel(mode: PrivacySettings["monitorMode"]) {
 }
 
 function useStreamingConversationAnswers(turns: ConversationTurn[]) {
-  const mountedAtRef = useRef(Date.now());
   const fullAnswersRef = useRef<Record<string, string>>({});
   const timersRef = useRef<Record<string, number>>({});
   const [streamed, setStreamed] = useState<Record<string, string>>({});
@@ -2169,26 +2167,11 @@ function useStreamingConversationAnswers(turns: ConversationTurn[]) {
       }
 
       fullAnswersRef.current[turn.id] = answer;
-      const createdAt = new Date(turn.createdAt).getTime();
-      const shouldStream = Number.isFinite(createdAt) && createdAt >= mountedAtRef.current - 1200;
-      if (!shouldStream) {
-        setStreamed((current) => ({ ...current, [turn.id]: answer }));
-        continue;
-      }
-
       if (timersRef.current[turn.id]) {
         window.clearInterval(timersRef.current[turn.id]);
+        delete timersRef.current[turn.id];
       }
-      let index = 0;
-      setStreamed((current) => ({ ...current, [turn.id]: "" }));
-      timersRef.current[turn.id] = window.setInterval(() => {
-        index = Math.min(answer.length, index + 3);
-        setStreamed((current) => ({ ...current, [turn.id]: answer.slice(0, index) }));
-        if (index >= answer.length) {
-          window.clearInterval(timersRef.current[turn.id]);
-          delete timersRef.current[turn.id];
-        }
-      }, 38);
+      setStreamed((current) => ({ ...current, [turn.id]: answer }));
     }
   }, [turns]);
 
