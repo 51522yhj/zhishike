@@ -105,6 +105,7 @@ export default function App() {
   const [recognizedTranscript, setRecognizedTranscript] = useState("");
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [streamedAnswer, setStreamedAnswer] = useState("");
+  const answerStyleRef = useRef<AnswerStyle>("concise");
   const pendingAnswerStyleRef = useRef<AnswerStyle | null>(null);
   const answerStyleSavePromiseRef = useRef<Promise<AnswerStyle | void> | null>(null);
   const liveTranscriptRef = useRef("");
@@ -253,6 +254,7 @@ export default function App() {
     const snapshot: AppSnapshot = await window.zhishik.snapshot();
     setDocuments(snapshot.documents);
     setPersonalPrompt(snapshot.personalPrompt ?? "");
+    answerStyleRef.current = snapshot.answerStyle ?? "concise";
     setAnswerStyle(snapshot.answerStyle ?? "concise");
     setPrivacy(snapshot.privacy);
     setModel(snapshot.model);
@@ -267,6 +269,7 @@ export default function App() {
     const snapshot = await window.zhishik.snapshot();
     setPersonalPrompt(snapshot.personalPrompt ?? "");
     if (!pendingAnswerStyleRef.current) {
+      answerStyleRef.current = snapshot.answerStyle ?? "concise";
       setAnswerStyle(snapshot.answerStyle ?? "concise");
     }
     setPrivacy(snapshot.privacy);
@@ -744,11 +747,15 @@ export default function App() {
   async function updatePrivacy(next: Partial<PrivacySettings>) {
     if (next.paused === false || next.monitorMode) {
       await answerStyleSavePromiseRef.current?.catch(() => undefined);
+      if (window.zhishik.updateAnswerStyle) {
+        await window.zhishik.updateAnswerStyle(answerStyleRef.current).catch(() => undefined);
+      }
     }
     const settings = await window.zhishik.updatePrivacy(next);
     setPrivacy(settings);
     const snapshot = await window.zhishik.snapshot();
     if (!pendingAnswerStyleRef.current) {
+      answerStyleRef.current = snapshot.answerStyle ?? "concise";
       setAnswerStyle(snapshot.answerStyle ?? "concise");
     }
     setAssistant(snapshot.assistant);
@@ -780,6 +787,7 @@ export default function App() {
   }
 
   async function updateAnswerStyle(next: AnswerStyle) {
+    answerStyleRef.current = next;
     pendingAnswerStyleRef.current = next;
     setAnswerStyle(next);
     if (!window.zhishik.updateAnswerStyle) {
@@ -790,6 +798,7 @@ export default function App() {
     answerStyleSavePromiseRef.current = savePromise;
     try {
       const saved = await savePromise;
+      answerStyleRef.current = saved ?? next;
       setAnswerStyle(saved ?? next);
     } finally {
       if (answerStyleSavePromiseRef.current === savePromise) {
@@ -967,6 +976,7 @@ function OverlayAssistant(props: {
   const [regenerating, setRegenerating] = useState(false);
   const { liveTranscript, recognizedTranscript, analysisLoading, streamingTurns } = props;
   const overlayDragRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const overlayAnswerStyleRef = useRef<AnswerStyle>(props.answerStyle);
   const pendingOverlayAnswerStyleRef = useRef<AnswerStyle | null>(null);
   const overlayAnswerStyleSavePromiseRef = useRef<Promise<AnswerStyle | void> | null>(null);
 
@@ -987,6 +997,7 @@ function OverlayAssistant(props: {
     setAssistant(snapshot.assistant);
     setPrivacy(snapshot.privacy);
     if (!pendingOverlayAnswerStyleRef.current) {
+      overlayAnswerStyleRef.current = snapshot.answerStyle ?? "concise";
       setAnswerStyle(snapshot.answerStyle ?? "concise");
     }
     setConversationTurns(snapshot.conversationTurns);
@@ -1009,6 +1020,7 @@ function OverlayAssistant(props: {
       setAssistant(snapshot.assistant);
       setPrivacy(snapshot.privacy);
       if (!pendingOverlayAnswerStyleRef.current) {
+        overlayAnswerStyleRef.current = snapshot.answerStyle ?? "concise";
         setAnswerStyle(snapshot.answerStyle ?? "concise");
       }
       setConversationTurns(snapshot.conversationTurns);
@@ -1031,6 +1043,9 @@ function OverlayAssistant(props: {
   async function updateOverlayPrivacy(next: Partial<PrivacySettings>) {
     if (next.paused === false || next.monitorMode) {
       await overlayAnswerStyleSavePromiseRef.current?.catch(() => undefined);
+      if (window.zhishik.updateAnswerStyle) {
+        await window.zhishik.updateAnswerStyle(overlayAnswerStyleRef.current).catch(() => undefined);
+      }
     }
     const settings = await window.zhishik.updatePrivacy(next);
     setPrivacy(settings);
@@ -1038,6 +1053,7 @@ function OverlayAssistant(props: {
   }
 
   async function updateOverlayAnswerStyle(next: AnswerStyle) {
+    overlayAnswerStyleRef.current = next;
     pendingOverlayAnswerStyleRef.current = next;
     setAnswerStyle(next);
     if (!window.zhishik.updateAnswerStyle) {
@@ -1048,6 +1064,7 @@ function OverlayAssistant(props: {
     overlayAnswerStyleSavePromiseRef.current = savePromise;
     try {
       const saved = await savePromise;
+      overlayAnswerStyleRef.current = saved ?? next;
       setAnswerStyle(saved ?? next);
     } finally {
       if (overlayAnswerStyleSavePromiseRef.current === savePromise) {
