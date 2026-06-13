@@ -338,11 +338,7 @@ function registerIpc() {
     const lastAssistant = database.getAssistant() ?? buildModePlaceholder(database.getPrivacy().monitorMode);
     database.saveAssistant(lastAssistant);
     return {
-      documents: database.listDocuments(),
-      privacy: database.getPrivacy(),
-      model: database.getModel(),
-      conversationTurns: database.listTodayConversationTurns(),
-      conversationSessions: database.listConversationSessions(),
+      ...database.snapshot(),
       assistant: lastAssistant
     };
   });
@@ -392,7 +388,10 @@ function registerIpc() {
     return database.updatePersonalPrompt(personalPrompt);
   });
   ipcMain.handle("assistant:update-answer-style", (_event, answerStyle: AnswerStyle) => {
-    return database.updateAnswerStyle(answerStyle);
+    const saved = database.updateAnswerStyle(answerStyle);
+    writeRuntimeLog("answer-style:update", { requested: answerStyle, saved });
+    broadcastAnswerStyle(saved);
+    return saved;
   });
 
   ipcMain.handle("assistant:ask", async (_event, question: string) => {
@@ -724,8 +723,18 @@ function getWorkArea() {
 }
 
 function broadcastPrivacy(settings: PrivacySettings) {
-  for (const window of BrowserWindow.getAllWindows()) {
-    window.webContents.send("privacy:changed", settings);
+  for (const targetWindow of BrowserWindow.getAllWindows()) {
+    if (!targetWindow.isDestroyed() && !targetWindow.webContents.isDestroyed()) {
+      targetWindow.webContents.send("privacy:changed", settings);
+    }
+  }
+}
+
+function broadcastAnswerStyle(answerStyle: AnswerStyle) {
+  for (const targetWindow of BrowserWindow.getAllWindows()) {
+    if (!targetWindow.isDestroyed() && !targetWindow.webContents.isDestroyed()) {
+      targetWindow.webContents.send("assistant:answer-style-changed", answerStyle);
+    }
   }
 }
 
@@ -735,7 +744,7 @@ function updatePrivacyAndBroadcast(next: PrivacyUpdateInput) {
   const previous = database.getPrivacy();
   const { answerStyle, ...privacyNext } = next;
   if (answerStyle) {
-    database.updateAnswerStyle(answerStyle);
+    broadcastAnswerStyle(database.updateAnswerStyle(answerStyle));
   }
   const normalizedNext = { ...privacyNext };
   if (normalizedNext.monitorMode === "smart") {

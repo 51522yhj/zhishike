@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { motion } from "framer-motion";
 import {
@@ -146,6 +146,7 @@ export default function App() {
       setPrivacy(settings);
       void refreshRuntimeSnapshot();
     });
+    const clearAnswerStyle = window.zhishik.onAnswerStyleChanged(applyAnswerStyleFromMain);
     const clearSummary = window.zhishik.onSummaryRequested(() => setTab("assistant"));
     const clearRecorderRevoked = window.zhishik.onRecorderRevoked(() => {
       recorderClaimedRef.current = false;
@@ -159,6 +160,7 @@ export default function App() {
 
     return () => {
       clearPrivacy();
+      clearAnswerStyle();
       clearSummary();
       clearRecorderRevoked();
       clearAssistantStream();
@@ -276,6 +278,13 @@ export default function App() {
     setConversationTurns(snapshot.conversationTurns);
     setConversationSessions(snapshot.conversationSessions);
     setAssistant(snapshot.assistant);
+  }
+
+  function applyAnswerStyleFromMain(next: AnswerStyle) {
+    answerStyleRef.current = next;
+    pendingAnswerStyleRef.current = null;
+    answerStyleSavePromiseRef.current = null;
+    setAnswerStyle(next);
   }
 
   async function importDocuments() {
@@ -989,6 +998,13 @@ function OverlayAssistant(props: {
     };
   }, []);
 
+  useEffect(() => {
+    if (!pendingOverlayAnswerStyleRef.current) {
+      overlayAnswerStyleRef.current = props.answerStyle;
+      setAnswerStyle(props.answerStyle);
+    }
+  }, [props.answerStyle]);
+
   async function refreshOverlaySnapshot() {
     const snapshot = await window.zhishik.snapshot();
     setAssistant(snapshot.assistant);
@@ -1315,13 +1331,31 @@ function AnswerStylePicker(props: {
   updateAnswerStyle: (style: AnswerStyle) => void;
   compact?: boolean;
 }) {
+  function chooseStyle(
+    style: AnswerStyle,
+    event: ReactPointerEvent<HTMLButtonElement> | ReactKeyboardEvent<HTMLButtonElement>
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    props.updateAnswerStyle(style);
+  }
+
   return (
-    <div className={props.compact ? "answer-style-picker compact" : "answer-style-picker"}>
+    <div className={props.compact ? "answer-style-picker compact" : "answer-style-picker"} data-overlay-no-drag>
       {answerStyles.map((style) => (
         <button
           key={style.id}
           className={props.answerStyle === style.id ? "selected" : ""}
-          onClick={() => props.updateAnswerStyle(style.id)}
+          onPointerDown={(event) => chooseStyle(style.id, event)}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              chooseStyle(style.id, event);
+            }
+          }}
           title={style.hint}
           type="button"
         >

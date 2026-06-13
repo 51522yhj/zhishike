@@ -56,6 +56,11 @@ const api = {
     ipcRenderer.on("privacy:changed", listener);
     return () => ipcRenderer.removeListener("privacy:changed", listener);
   },
+  onAnswerStyleChanged: (callback: (answerStyle: AnswerStyle) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, answerStyle: AnswerStyle) => callback(answerStyle);
+    ipcRenderer.on("assistant:answer-style-changed", listener);
+    return () => ipcRenderer.removeListener("assistant:answer-style-changed", listener);
+  },
   onSummaryRequested: (callback: () => void) => {
     const listener = () => callback();
     ipcRenderer.on("assistant:summary-requested", listener);
