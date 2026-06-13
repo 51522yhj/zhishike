@@ -787,6 +787,7 @@ export default function App() {
       <OverlayAssistant
         assistant={assistant}
         privacy={privacy}
+        answerStyle={answerStyle}
         conversationTurns={conversationTurns}
         streamingTurns={streamingTurns}
         liveTranscript={liveTranscript}
@@ -931,6 +932,7 @@ export default function App() {
 function OverlayAssistant(props: {
   assistant: AssistantFrame;
   privacy: PrivacySettings;
+  answerStyle: AnswerStyle;
   conversationTurns: ConversationTurn[];
   streamingTurns: ConversationTurn[];
   liveTranscript: string;
@@ -939,6 +941,7 @@ function OverlayAssistant(props: {
 }) {
   const [assistant, setAssistant] = useState(props.assistant);
   const [privacy, setPrivacy] = useState(props.privacy);
+  const [answerStyle, setAnswerStyle] = useState<AnswerStyle>(props.answerStyle);
   const [conversationTurns, setConversationTurns] = useState(props.conversationTurns);
   const [regenerating, setRegenerating] = useState(false);
   const { liveTranscript, recognizedTranscript, analysisLoading, streamingTurns } = props;
@@ -960,6 +963,7 @@ function OverlayAssistant(props: {
     const snapshot = await window.zhishik.snapshot();
     setAssistant(snapshot.assistant);
     setPrivacy(snapshot.privacy);
+    setAnswerStyle(snapshot.answerStyle ?? "concise");
     setConversationTurns(snapshot.conversationTurns);
   }
 
@@ -979,6 +983,7 @@ function OverlayAssistant(props: {
       const snapshot = await window.zhishik.snapshot();
       setAssistant(snapshot.assistant);
       setPrivacy(snapshot.privacy);
+      setAnswerStyle(snapshot.answerStyle ?? "concise");
       setConversationTurns(snapshot.conversationTurns);
     }, intervalMs);
 
@@ -1000,6 +1005,15 @@ function OverlayAssistant(props: {
     const settings = await window.zhishik.updatePrivacy(next);
     setPrivacy(settings);
     await refreshOverlaySnapshot();
+  }
+
+  async function updateOverlayAnswerStyle(next: AnswerStyle) {
+    setAnswerStyle(next);
+    if (!window.zhishik.updateAnswerStyle) {
+      return;
+    }
+    const saved = await window.zhishik.updateAnswerStyle(next);
+    setAnswerStyle(saved ?? next);
   }
 
   async function endOverlayVoiceSession() {
@@ -1124,6 +1138,9 @@ function OverlayAssistant(props: {
             </button>
           )}
         </div>
+        {activeConversationMode && (
+          <AnswerStylePicker answerStyle={answerStyle} updateAnswerStyle={updateOverlayAnswerStyle} compact />
+        )}
         {!isAnswerMode && (
           <RecognitionStatus liveTranscript={liveTranscript} recognizedTranscript={recognizedTranscript} analysisLoading={analysisLoading} compact />
         )}
@@ -1241,6 +1258,29 @@ function mergeStreamingTurns(conversationTurns: ConversationTurn[], streamingTur
   return [...streamingTurns, ...conversationTurns.filter((turn) => !streamingIds.has(turn.id))];
 }
 
+function AnswerStylePicker(props: {
+  answerStyle: AnswerStyle;
+  updateAnswerStyle: (style: AnswerStyle) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={props.compact ? "answer-style-picker compact" : "answer-style-picker"}>
+      {answerStyles.map((style) => (
+        <button
+          key={style.id}
+          className={props.answerStyle === style.id ? "selected" : ""}
+          onClick={() => props.updateAnswerStyle(style.id)}
+          title={style.hint}
+          type="button"
+        >
+          <span>{style.label}</span>
+          <small>{style.hint}</small>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function AssistantView(props: {
   assistant: AssistantFrame;
   question: string;
@@ -1278,6 +1318,7 @@ function AssistantView(props: {
     streamedAnswer
   } = props;
   const activeConversationMode = conversationModeForMonitorMode(privacy.monitorMode);
+  const showAnswerStylePicker = privacy.monitorMode === "meeting" || privacy.monitorMode === "interview";
   const displayedConversationTurns = mergeStreamingTurns(conversationTurns, streamingTurns)
     .filter((turn) => !activeConversationMode || turn.mode === activeConversationMode)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -1293,20 +1334,7 @@ function AssistantView(props: {
           当前问题
         </div>
         <textarea value={question} onChange={(event) => setQuestion(event.target.value)} />
-        <div className="answer-style-picker">
-          {answerStyles.map((style) => (
-            <button
-              key={style.id}
-              className={answerStyle === style.id ? "selected" : ""}
-              onClick={() => updateAnswerStyle(style.id)}
-              title={style.hint}
-              type="button"
-            >
-              <span>{style.label}</span>
-              <small>{style.hint}</small>
-            </button>
-          ))}
-        </div>
+        {showAnswerStylePicker && <AnswerStylePicker answerStyle={answerStyle} updateAnswerStyle={updateAnswerStyle} />}
         <button className="primary wide" onClick={askAssistant} disabled={busy}>
           <Sparkles size={17} />
           {busy ? "生成中..." : "结合知识库回答"}

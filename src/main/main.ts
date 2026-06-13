@@ -951,9 +951,11 @@ function delay(ms: number) {
 
 function buildPersonalHiddenContext(extra = "") {
   const personalPrompt = database.getPersonalPrompt().trim();
+  const monitorMode = database.getPrivacy().monitorMode;
+  const shouldUseAnswerStyle = monitorMode === "meeting" || monitorMode === "interview";
   return [
     personalPrompt ? `Personal profile and answer preferences:\n${personalPrompt}` : "",
-    `Answer style:\n${answerStyleInstruction(database.getAnswerStyle())}`,
+    shouldUseAnswerStyle ? `Answer style:\n${answerStyleInstruction(database.getAnswerStyle())}` : "",
     extra.trim()
   ]
     .filter(Boolean)

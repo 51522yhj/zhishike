@@ -349,6 +349,42 @@ button {
   color: #ffffff;
 }
 
+.answer-style-picker.compact {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+.answer-style-picker.compact button {
+  min-height: 34px;
+  padding: 5px 7px;
+  border-color: color-mix(in srgb, var(--overlay-text, #f4fbfb) 20%, transparent);
+  color: color-mix(in srgb, var(--overlay-text, #f4fbfb) 78%, transparent);
+  background: rgba(0, 0, 0, calc(var(--overlay-alpha, 0.12) + 0.08));
+  box-shadow: none;
+}
+
+.answer-style-picker.compact button span {
+  color: var(--overlay-text, #f4fbfb);
+  font-size: 12px;
+}
+
+.answer-style-picker.compact button small {
+  display: none;
+}
+
+.answer-style-picker.compact button.selected {
+  border-color: color-mix(in srgb, var(--overlay-accent, #2563eb) 58%, transparent);
+  background: var(--overlay-accent, #2563eb);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.answer-style-picker.compact button.selected span {
+  color: #ffffff;
+}
+
 textarea {
   width: 100%;
   min-height: 96px;
