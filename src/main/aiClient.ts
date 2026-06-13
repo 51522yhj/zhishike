@@ -44,7 +44,7 @@ export class AiClient {
           },
           {
             role: "system",
-            content: "If hiddenContext asks for English output, answer primarily in English even when bilingualRequired is false."
+            content: "If hiddenContext asks for English output, use the required English-first bilingual format even when the user question is Chinese."
           },
           {
             role: "user",
@@ -113,7 +113,7 @@ export class AiClient {
           },
           {
             role: "system",
-            content: "If hiddenContext asks for English output, answer primarily in English."
+            content: "If hiddenContext asks for English output, use the required English-first bilingual format even when the user question is Chinese."
           },
           {
             role: "user",
@@ -411,7 +411,7 @@ function buildAnswerUserContent(input: {
   ];
 }
 
-function buildAssistantSystemPrompt(englishOutput: boolean, jsonOutput: boolean) {
+function buildAssistantSystemPrompt(englishFirstBilingual: boolean, jsonOutput: boolean) {
   const common = [
     jsonOutput
       ? "You are a real-time desktop assistant. Return strict JSON with detectedQuestion, translation, summary, suggestedAnswer, nextSteps."
@@ -422,21 +422,25 @@ function buildAssistantSystemPrompt(englishOutput: boolean, jsonOutput: boolean)
     "If the context is insufficient, answer conservatively and say what information is missing.",
     "Do not output labels such as recent context, interviewer question, candidate answer, analysis metadata, or markdown fences."
   ];
-  const language = englishOutput
-    ? "Output in fluent natural spoken English only. Do not output Chinese unless the user explicitly asks for Chinese."
+  const language = englishFirstBilingual
+    ? [
+        "Output MUST be bilingual in this exact order:",
+        "1. First provide the complete answer in fluent natural spoken English.",
+        "2. Then provide the corresponding Chinese version below it.",
+        "Use clear section labels: English: and Chinese:.",
+        "The Chinese section must correspond to the English answer, not replace it.",
+        "This rule applies even when the user question/transcript is Chinese."
+      ].join(" ")
     : "Output in Chinese unless bilingual output is explicitly needed.";
   const jsonRule = jsonOutput
-    ? "nextSteps must be 3 short actions in the same language as suggestedAnswer. suggestedAnswer should be a direct answer the user can say immediately."
+    ? "nextSteps must be 3 short actions in the same language format as suggestedAnswer. suggestedAnswer should be a direct answer the user can say immediately."
     : "Keep it concise, concrete, and natural.";
   return [...common, language, jsonRule].join(" ");
 }
 
 function prefersEnglishOutput(input: { hiddenContext?: string; transcript?: string; bilingualRequired?: boolean }) {
-  if (input.bilingualRequired) {
-    return false;
-  }
   const text = `${input.hiddenContext ?? ""}\n${input.transcript ?? ""}`;
-  return /english\s+style|spoken\s+english|answer\s+(?:entirely|primarily)\s+in\s+(?:fluent\s+)?english|output\s+in\s+(?:fluent\s+)?(?:natural\s+spoken\s+)?english|do\s+not\s+use\s+chinese/i.test(text);
+  return Boolean(input.bilingualRequired) || /english\s+style|english[- ]first|spoken\s+english|answer\s+(?:entirely|primarily)\s+in\s+(?:fluent\s+)?english|output\s+in\s+(?:fluent\s+)?(?:natural\s+spoken\s+)?english|corresponding\s+chinese/i.test(text);
 }
 
 function resolveAssistantRequestModel(model: ModelSettings, hasScreenshot: boolean) {

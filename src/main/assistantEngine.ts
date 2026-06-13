@@ -142,7 +142,9 @@ export class AssistantEngine {
   ): Promise<AssistantFrame> {
     const searchText = [question, input.transcript, input.screenText, input.hiddenContext].filter(Boolean).join("\n");
     const citations = this.knowledge.search(searchText, chunks, 4);
-    const bilingualRequired = Boolean(input.model.translationEnabled) && looksEnglish([input.transcript, question, input.screenText].filter(Boolean).join("\n"));
+    const bilingualRequired =
+      wantsEnglishFirstBilingual(input.hiddenContext) ||
+      (Boolean(input.model.translationEnabled) && looksEnglish([input.transcript, question, input.screenText].filter(Boolean).join("\n")));
     this.rollingSummary = [...this.rollingSummary, question].slice(-4);
     const rollingSummary = `最近重点：${this.rollingSummary.join(" / ")}`;
 
@@ -197,6 +199,10 @@ function cleanSuggestedAnswer(answer: string) {
     .replace(/建议先直接回应\s*[:：]\s*[“"]?面试官刚才的问题\s*[:：]?/g, "建议回答：")
     .trim();
   return cleaned || answer.trim();
+}
+
+function wantsEnglishFirstBilingual(hiddenContext = "") {
+  return /english\s+style|english[- ]first|corresponding\s+chinese|natural spoken english/i.test(hiddenContext);
 }
 
 function isRateLimitError(error: unknown) {

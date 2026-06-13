@@ -1043,7 +1043,7 @@ function answerStyleInstruction(style: AnswerStyle) {
     interviewer: "面试官友好版：用自然候选人口吻回答，突出动机、个人贡献、协作和结果，避免像背稿。",
     technical: "技术深入版：补充关键技术细节、方案权衡、边界条件、性能/稳定性考虑和可落地实现。",
     project_review: "项目复盘版：按背景、目标、行动、结果、复盘展开，突出问题、取舍、数据结果和改进。",
-    english: "英文版：answer primarily in fluent English. Keep the same factual constraints, and only add Chinese when the user explicitly asks."
+    english: "English style: answer in English-first bilingual format. First provide the complete answer in fluent natural spoken English, then provide the corresponding Chinese version below it. Use section labels English: and Chinese:."
   };
   return instructions[style];
 }
@@ -1067,8 +1067,10 @@ function buildMeetingAnswerPrompt(transcript: string) {
 function buildInterviewAnswerInstructions() {
   const language = prefersEnglishAnswer()
     ? [
-        "Please answer as the candidate in natural spoken English.",
-        "Do not use Chinese unless the user explicitly asks for Chinese."
+        "Please answer as the candidate in English-first bilingual format.",
+        "First provide the complete answer in fluent natural spoken English.",
+        "Then provide the corresponding Chinese version below it.",
+        "Use section labels English: and Chinese:."
       ]
     : ["Please answer as the candidate in natural spoken Chinese."];
   return [
@@ -1081,7 +1083,10 @@ function buildInterviewAnswerInstructions() {
 function buildMeetingAnswerInstructions() {
   if (prefersEnglishAnswer()) {
     return [
-      "Please produce a concise English answer or meeting note that can be used immediately.",
+      "Please produce an English-first bilingual answer or meeting note that can be used immediately.",
+      "First provide the complete English version.",
+      "Then provide the corresponding Chinese version below it.",
+      "Use section labels English: and Chinese:.",
       "Do not output JSON."
     ];
   }

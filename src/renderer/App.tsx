@@ -2238,11 +2238,18 @@ function mergeLiveTranscript(previous: string, next: string) {
 function cleanOverlayQuestion(text: string) {
   const cleaned = text
     .replace(/Please answer as the candidate in natural spoken (?:English|Chinese)\.?/gi, "")
+    .replace(/Please answer as the candidate in English-first bilingual format\.?/gi, "")
+    .replace(/First provide the complete answer in fluent natural spoken English\.?/gi, "")
+    .replace(/Then provide the corresponding Chinese version below it\.?/gi, "")
+    .replace(/Use section labels English:\s*and 中文：?\.?/gi, "")
+    .replace(/Use section labels English:\s*and Chinese:\.?/gi, "")
     .replace(/Do not use Chinese unless the user explicitly asks for Chinese\.?/gi, "")
     .replace(/Do not repeat the question\.?/gi, "")
     .replace(/Do not mention recent context\.?/gi, "")
     .replace(/Structure:\s*conclusion\s*\+\s*concrete example\/action\s*\+\s*result\.?/gi, "")
     .replace(/Please produce a concise (?:English|Chinese) answer or meeting note that can be used immediately\.?/gi, "")
+    .replace(/Please produce an English-first bilingual answer or meeting note that can be used immediately\.?/gi, "")
+    .replace(/First provide the complete English version\.?/gi, "")
     .replace(/Do not output JSON\.?/gi, "")
     .replace(/Response instructions:\s*/gi, "")
     .replace(/最近重点[:：]?/g, "")
