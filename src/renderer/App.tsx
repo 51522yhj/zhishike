@@ -348,6 +348,14 @@ export default function App() {
     }, 38);
   }
 
+  function stopLocalAnswerStream() {
+    if (answerStreamTimerRef.current) {
+      window.clearInterval(answerStreamTimerRef.current);
+      answerStreamTimerRef.current = null;
+    }
+    setStreamedAnswer("");
+  }
+
   function setAnalysisBusy(delta: number) {
     activeAnalysisCountRef.current = Math.max(0, activeAnalysisCountRef.current + delta);
     setAnalysisLoading(activeAnalysisCountRef.current > 0);
@@ -355,6 +363,7 @@ export default function App() {
 
   function handleAssistantStreamEvent(event: AssistantStreamEvent) {
     if (event.phase === "start") {
+      stopLocalAnswerStream();
       setStreamingTurns((current) => upsertStreamingTurn(current, streamEventToTurn(event, "")));
       return;
     }
@@ -374,6 +383,7 @@ export default function App() {
       if (event.frame) {
         const frame = event.frame;
         setAssistant(frame);
+        setStreamedAnswer("");
         setStreamingTurns((current) =>
           upsertStreamingTurn(current, { ...frameToStreamingTurn(frame, event.mode), id: event.id, createdAt: event.createdAt })
         );
@@ -398,7 +408,8 @@ export default function App() {
     try {
       const frame = await window.zhishik.analyzeTranscript(text);
       if (frame) {
-        presentAssistantFrame(frame);
+        setAssistant(frame);
+        setStreamedAnswer("");
       }
       const snapshot = await window.zhishik.snapshot();
       setConversationTurns(snapshot.conversationTurns);
