@@ -1042,6 +1042,7 @@ textarea {
 }
 
 .overlay-panel {
+  position: relative;
   display: grid;
   gap: 10px;
   width: calc(100vw - 16px);
@@ -1058,6 +1059,77 @@ textarea {
   cursor: move;
   -webkit-app-region: no-drag;
   user-select: none;
+}
+
+.overlay-resize-handle {
+  position: absolute;
+  z-index: 20;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.overlay-resize-handle.n,
+.overlay-resize-handle.s {
+  left: 16px;
+  right: 16px;
+  height: 12px;
+  cursor: ns-resize;
+}
+
+.overlay-resize-handle.n {
+  top: -6px;
+}
+
+.overlay-resize-handle.s {
+  bottom: -6px;
+}
+
+.overlay-resize-handle.e,
+.overlay-resize-handle.w {
+  top: 16px;
+  bottom: 16px;
+  width: 12px;
+  cursor: ew-resize;
+}
+
+.overlay-resize-handle.e {
+  right: -6px;
+}
+
+.overlay-resize-handle.w {
+  left: -6px;
+}
+
+.overlay-resize-handle.ne,
+.overlay-resize-handle.nw,
+.overlay-resize-handle.se,
+.overlay-resize-handle.sw {
+  width: 18px;
+  height: 18px;
+}
+
+.overlay-resize-handle.ne {
+  top: -7px;
+  right: -7px;
+  cursor: nesw-resize;
+}
+
+.overlay-resize-handle.nw {
+  top: -7px;
+  left: -7px;
+  cursor: nwse-resize;
+}
+
+.overlay-resize-handle.se {
+  right: -7px;
+  bottom: -7px;
+  cursor: nwse-resize;
+}
+
+.overlay-resize-handle.sw {
+  bottom: -7px;
+  left: -7px;
+  cursor: nesw-resize;
 }
 
 .overlay-panel.paused {

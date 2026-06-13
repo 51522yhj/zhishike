@@ -16,6 +16,16 @@ function assertCheck(checks, name, ok) {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
 }
 
+function getCurrentRendererAsset(extension) {
+  const indexHtml = read("dist/renderer/index.html");
+  const pattern = new RegExp(`/assets/([^"]+\\.${extension})`);
+  const match = indexHtml.match(pattern);
+  if (!match) {
+    throw new Error(`Could not find current renderer .${extension} asset in dist/renderer/index.html`);
+  }
+  return match[1];
+}
+
 async function wait(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -83,7 +93,7 @@ function runStaticChecks() {
   const sourceMain = read("src/main/main.ts");
   const distMain = read("dist/main/main.js");
   const distPreload = read("dist/preload/preload.js");
-  const rendererAsset = fs.readdirSync(path.join(rootDir, "dist/renderer/assets")).find((file) => file.endsWith(".js"));
+  const rendererAsset = getCurrentRendererAsset("js");
   const distRenderer = read(`dist/renderer/assets/${rendererAsset}`);
 
   assertCheck(checks, "source main logs and broadcasts answer-style update", sourceMain.includes('writeRuntimeLog("answer-style:update"') && sourceMain.includes("broadcastAnswerStyle(saved)"));

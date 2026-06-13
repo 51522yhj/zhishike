@@ -51,6 +51,8 @@ const api = {
   windowControl: (action: "minimize" | "maximize" | "close") => ipcRenderer.invoke("window:control", action) as Promise<void>,
   setOverlayIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke("overlay:set-ignore-mouse-events", ignore) as Promise<void>,
   moveOverlayBy: (delta: { x: number; y: number }) => ipcRenderer.send("overlay:move-by", delta),
+  resizeOverlayBy: (delta: { x: number; y: number; edge: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw" }) =>
+    ipcRenderer.send("overlay:resize-by", delta),
   onPrivacyChanged: (callback: (settings: PrivacySettings) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, settings: PrivacySettings) => callback(settings);
     ipcRenderer.on("privacy:changed", listener);

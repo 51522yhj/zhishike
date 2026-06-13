@@ -40,6 +40,8 @@ let llmCooldownUntil = 0;
 let llmCooldownMessage = "";
 let recorderOwnerWebContentsId: number | null = null;
 
+type OverlayResizeEdge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
 type ConversationStreamFactory = (transcript: string) => {
   onDelta: (delta: string) => void;
   done: (frame: AssistantFrame) => void;
@@ -642,6 +644,64 @@ function registerIpc() {
     const [left, top] = target.getPosition();
     target.setPosition(Math.round(left + x), Math.round(top + y), false);
   });
+  ipcMain.on("overlay:resize-by", (event, delta: { x: number; y: number; edge: OverlayResizeEdge }) => {
+    const target = BrowserWindow.fromWebContents(event.sender);
+    if (!target || target !== overlayWindow || target.isDestroyed()) {
+      return;
+    }
+    const x = Number(delta?.x);
+    const y = Number(delta?.y);
+    const edge = delta?.edge;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !isOverlayResizeEdge(edge)) {
+      return;
+    }
+
+    const bounds = target.getBounds();
+    const minSize = target.getMinimumSize();
+    let nextX = bounds.x;
+    let nextY = bounds.y;
+    let nextWidth = bounds.width;
+    let nextHeight = bounds.height;
+
+    if (edge.includes("e")) {
+      nextWidth += x;
+    }
+    if (edge.includes("s")) {
+      nextHeight += y;
+    }
+    if (edge.includes("w")) {
+      nextX += x;
+      nextWidth -= x;
+    }
+    if (edge.includes("n")) {
+      nextY += y;
+      nextHeight -= y;
+    }
+
+    if (nextWidth < minSize[0]) {
+      if (edge.includes("w")) {
+        nextX -= minSize[0] - nextWidth;
+      }
+      nextWidth = minSize[0];
+    }
+    if (nextHeight < minSize[1]) {
+      if (edge.includes("n")) {
+        nextY -= minSize[1] - nextHeight;
+      }
+      nextHeight = minSize[1];
+    }
+
+    target.setBounds({
+      x: Math.round(nextX),
+      y: Math.round(nextY),
+      width: Math.round(nextWidth),
+      height: Math.round(nextHeight)
+    });
+  });
+}
+
+function isOverlayResizeEdge(edge: unknown): edge is OverlayResizeEdge {
+  return typeof edge === "string" && /^(n|s|e|w|ne|nw|se|sw)$/.test(edge);
 }
 
 async function repairKnowledgeIndexIfNeeded() {
@@ -988,6 +1048,43 @@ function answerStyleInstruction(style: AnswerStyle) {
   return instructions[style];
 }
 
+function prefersEnglishAnswer() {
+  return database.getAnswerStyle() === "english";
+}
+
+function buildInterviewAnswerPrompt(transcript: string) {
+  const language = prefersEnglishAnswer()
+    ? [
+        "Please answer as the candidate in natural spoken English.",
+        "Do not use Chinese unless the user explicitly asks for Chinese."
+      ]
+    : ["Please answer as the candidate in natural spoken Chinese."];
+  return [
+    transcript,
+    "",
+    ...language,
+    "Do not repeat the question. Do not mention recent context.",
+    "Structure: conclusion + concrete example/action + result."
+  ].join("\n");
+}
+
+function buildMeetingAnswerPrompt(transcript: string) {
+  if (prefersEnglishAnswer()) {
+    return [
+      transcript,
+      "",
+      "Please produce a concise English answer or meeting note that can be used immediately.",
+      "Do not output JSON."
+    ].join("\n");
+  }
+  return [
+    transcript,
+    "",
+    "Please produce a concise Chinese answer or meeting note that can be used immediately.",
+    "Do not output JSON."
+  ].join("\n");
+}
+
 function createAssistantStreamFactory(sender: Electron.WebContents): ConversationStreamFactory {
   return (transcript: string) => {
     const mode = conversationModeForPrivacy(database.getPrivacy().monitorMode);
@@ -1099,13 +1196,7 @@ async function createStreamingConversationFrame(transcript: string, model: Model
       .slice(-2)
       .map((turn) => `Interviewer: ${turn.transcript}`)
       .join("\n\n");
-    const prompt = [
-      transcript,
-      "",
-      "Please answer as the candidate in natural spoken Chinese.",
-      "Do not repeat the question. Do not mention recent context.",
-      "Structure: conclusion + concrete example/action + result."
-    ].join("\n");
+    const prompt = buildInterviewAnswerPrompt(transcript);
     return assistant.answerWithContextStream(
       prompt,
       buildPersonalHiddenContext(recentContext),
@@ -1118,12 +1209,7 @@ async function createStreamingConversationFrame(transcript: string, model: Model
     );
   }
 
-  const prompt = [
-    transcript,
-    "",
-    "Please produce a concise Chinese answer or meeting note that can be used immediately.",
-    "Do not output JSON."
-  ].join("\n");
+  const prompt = buildMeetingAnswerPrompt(transcript);
   return assistant.answerWithContextStream(prompt, buildPersonalHiddenContext(), database.getChunks(), model, onDelta, sourceApp, transcript, "");
 }
 
@@ -1136,7 +1222,7 @@ async function createConversationFrame(transcript: string, model: ModelSettings,
       .slice(-2)
       .map((turn) => `面试官：${turn.transcript}`)
       .join("\n\n");
-    const question = `${transcript}\n\n请给出可直接口述的中文候选回答。不要复述问题，不要输出最近上下文或历史回答。结构：一句结论 + 具体例子/做法 + 结果。`;
+    const question = buildInterviewAnswerPrompt(transcript);
     return assistant.answerWithContext(question, buildPersonalHiddenContext(recentContext), database.getChunks(), model, "面试官提问", transcript, "");
   }
 
@@ -1175,7 +1261,7 @@ function recordConversationTurn(frame: Awaited<ReturnType<AssistantEngine["answe
 
 function isDuplicateConversationTurn(frame: AssistantFrame, mode: ConversationTurn["mode"]) {
   const text = normalizeConversationText(frame.transcript || frame.detectedQuestion);
-  if (text.length < 10) {
+  if (text.length < 6) {
     return false;
   }
 
@@ -1186,11 +1272,11 @@ function isDuplicateConversationTurn(frame: AssistantFrame, mode: ConversationTu
     .slice(-6)
     .some((turn) => {
       const previousAt = new Date(turn.createdAt).getTime();
-      if (!Number.isFinite(previousAt) || Math.abs(now - previousAt) > 10000) {
+      if (!Number.isFinite(previousAt) || Math.abs(now - previousAt) > 20000) {
         return false;
       }
       const previous = normalizeConversationText(turn.transcript || turn.detectedQuestion);
-      if (previous.length < 10) {
+      if (previous.length < 6) {
         return false;
       }
       const shorter = text.length < previous.length ? text : previous;

@@ -38,6 +38,7 @@ import type {
 import "./styles.css";
 
 type Tab = "assistant" | "knowledge" | "privacy" | "sessions" | "model";
+type OverlayResizeEdge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 const spaces: Array<{ id: KnowledgeSpace; label: string }> = [
   { id: "resume", label: "我的简历" },
@@ -52,6 +53,8 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof Sparkles }> = [
   { id: "sessions", label: "会话", icon: CalendarDays },
   { id: "model", label: "模型", icon: Network }
 ];
+
+const overlayResizeEdges: OverlayResizeEdge[] = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
 
 const VAD_CHECK_MS = 120;
 const VAD_SILENCE_MS = 1500;
@@ -982,6 +985,7 @@ function OverlayAssistant(props: {
   const [regenerating, setRegenerating] = useState(false);
   const { liveTranscript, recognizedTranscript, analysisLoading, streamingTurns } = props;
   const overlayDragRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const overlayResizeRef = useRef<{ x: number; y: number; pointerId: number; edge: OverlayResizeEdge } | null>(null);
   const overlayAnswerStyleRef = useRef<AnswerStyle>(props.answerStyle);
   const pendingOverlayAnswerStyleRef = useRef<AnswerStyle | null>(null);
   const overlayAnswerStyleSavePromiseRef = useRef<Promise<AnswerStyle | void> | null>(null);
@@ -1091,7 +1095,7 @@ function OverlayAssistant(props: {
   }
 
   function startOverlayDrag(event: ReactPointerEvent<HTMLElement>) {
-    if (event.button !== 0 || isOverlayControlTarget(event.target)) {
+    if (overlayResizeRef.current || event.button !== 0 || isOverlayControlTarget(event.target)) {
       return;
     }
     overlayDragRef.current = { x: event.screenX, y: event.screenY, pointerId: event.pointerId };
@@ -1100,6 +1104,9 @@ function OverlayAssistant(props: {
   }
 
   function moveOverlayDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (overlayResizeRef.current) {
+      return;
+    }
     const drag = overlayDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) {
       return;
@@ -1121,6 +1128,45 @@ function OverlayAssistant(props: {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  }
+
+  function startOverlayResize(edge: OverlayResizeEdge, event: ReactPointerEvent<HTMLElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+    overlayDragRef.current = null;
+    overlayResizeRef.current = { x: event.screenX, y: event.screenY, pointerId: event.pointerId, edge };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function moveOverlayResize(event: ReactPointerEvent<HTMLElement>) {
+    const resize = overlayResizeRef.current;
+    if (!resize || resize.pointerId !== event.pointerId) {
+      return;
+    }
+    const x = event.screenX - resize.x;
+    const y = event.screenY - resize.y;
+    if (x || y) {
+      window.zhishik.resizeOverlayBy({ x, y, edge: resize.edge });
+      overlayResizeRef.current = { ...resize, x: event.screenX, y: event.screenY };
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function stopOverlayResize(event: ReactPointerEvent<HTMLElement>) {
+    const resize = overlayResizeRef.current;
+    if (!resize || resize.pointerId !== event.pointerId) {
+      return;
+    }
+    overlayResizeRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   async function regeneratePageAnswer() {
@@ -1240,6 +1286,18 @@ function OverlayAssistant(props: {
             </div>
           </>
         )}
+        {overlayResizeEdges.map((edge) => (
+          <span
+            aria-hidden="true"
+            className={`overlay-resize-handle ${edge}`}
+            data-overlay-no-drag
+            key={edge}
+            onPointerDown={(event) => startOverlayResize(edge, event)}
+            onPointerMove={moveOverlayResize}
+            onPointerUp={stopOverlayResize}
+            onPointerCancel={stopOverlayResize}
+          />
+        ))}
       </motion.section>
     </main>
   );
@@ -1323,7 +1381,64 @@ function mergeStreamingTurns(conversationTurns: ConversationTurn[], streamingTur
     return conversationTurns;
   }
   const streamingIds = new Set(streamingTurns.map((turn) => turn.id));
-  return [...streamingTurns, ...conversationTurns.filter((turn) => !streamingIds.has(turn.id))];
+  const streamingTexts = streamingTurns.map((turn) => ({
+    createdAt: new Date(turn.createdAt).getTime(),
+    mode: turn.mode,
+    text: normalizeConversationDisplayText(turn.transcript || turn.detectedQuestion)
+  }));
+  return [
+    ...streamingTurns,
+    ...conversationTurns.filter((turn) => {
+      if (streamingIds.has(turn.id)) {
+        return false;
+      }
+      const createdAt = new Date(turn.createdAt).getTime();
+      const text = normalizeConversationDisplayText(turn.transcript || turn.detectedQuestion);
+      return !streamingTexts.some((streaming) => {
+        if (streaming.mode !== turn.mode || !Number.isFinite(createdAt) || !Number.isFinite(streaming.createdAt)) {
+          return false;
+        }
+        return Math.abs(createdAt - streaming.createdAt) <= 20000 && isSimilarConversationText(text, streaming.text);
+      });
+    })
+  ];
+}
+
+function normalizeConversationDisplayText(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[\s，。,.？！?!、；;："“”‘’（）()[\]{}]+/g, "");
+}
+
+function isSimilarConversationText(left: string, right: string) {
+  if (left.length < 6 || right.length < 6) {
+    return left === right;
+  }
+  const shorter = left.length < right.length ? left : right;
+  const longer = left.length < right.length ? right : left;
+  if (longer.includes(shorter) && shorter.length / longer.length >= 0.72) {
+    return true;
+  }
+  const leftTokens = toDisplayBigrams(left);
+  const rightTokens = toDisplayBigrams(right);
+  if (leftTokens.size === 0 || rightTokens.size === 0) {
+    return false;
+  }
+  let overlap = 0;
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) {
+      overlap += 1;
+    }
+  }
+  return overlap / Math.min(leftTokens.size, rightTokens.size) >= 0.82;
+}
+
+function toDisplayBigrams(text: string) {
+  const tokens = new Set<string>();
+  for (let index = 0; index < text.length - 1; index += 1) {
+    tokens.add(text.slice(index, index + 2));
+  }
+  return tokens;
 }
 
 function AnswerStylePicker(props: {
