@@ -1859,11 +1859,7 @@ function SessionsView(props: {
               {sessions.map((session) => (
                 <article className="session-card" key={session.id}>
                   <header>
-                    <input
-                      value={session.title}
-                      onChange={(event) => props.updateTitle(session.id, event.target.value)}
-                      aria-label="会话标题"
-                    />
+                    <SessionTitleInput sessionId={session.id} title={session.title} updateTitle={props.updateTitle} />
                     <span>
                       {new Date(session.startedAt).toLocaleString()}
                       {session.endedAt ? ` - ${new Date(session.endedAt).toLocaleTimeString()}` : " - 进行中"}
@@ -1888,6 +1884,67 @@ function SessionsView(props: {
         );
       })}
     </div>
+  );
+}
+
+function SessionTitleInput(props: { sessionId: string; title: string; updateTitle: (sessionId: string, title: string) => Promise<void> }) {
+  const [draft, setDraft] = useState(props.title);
+  const [editing, setEditing] = useState(false);
+  const composingRef = useRef(false);
+  const savingRef = useRef(false);
+
+  useEffect(() => {
+    if (!editing && !savingRef.current) {
+      setDraft(props.title);
+    }
+  }, [editing, props.title]);
+
+  async function commitTitle() {
+    const nextTitle = draft.trim();
+    if (!nextTitle || nextTitle === props.title) {
+      setDraft(nextTitle || props.title);
+      setEditing(false);
+      return;
+    }
+
+    savingRef.current = true;
+    setEditing(false);
+    try {
+      await props.updateTitle(props.sessionId, nextTitle);
+    } catch {
+      setDraft(props.title);
+    } finally {
+      savingRef.current = false;
+    }
+  }
+
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" && !composingRef.current) {
+      event.currentTarget.blur();
+      return;
+    }
+    if (event.key === "Escape") {
+      setDraft(props.title);
+      setEditing(false);
+      event.currentTarget.blur();
+    }
+  }
+
+  return (
+    <input
+      value={draft}
+      onFocus={() => setEditing(true)}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => void commitTitle()}
+      onKeyDown={handleKeyDown}
+      onCompositionStart={() => {
+        composingRef.current = true;
+      }}
+      onCompositionEnd={() => {
+        composingRef.current = false;
+      }}
+      aria-label="会话标题"
+    />
   );
 }
 
