@@ -8,6 +8,7 @@ import {
   globalShortcut,
   ipcMain,
   nativeImage,
+  screen,
   session,
   shell
 } from "electron";
@@ -638,72 +639,118 @@ function registerIpc() {
     if (!target || target !== overlayWindow || target.isDestroyed()) {
       return;
     }
-    const x = Number(delta?.x);
-    const y = Number(delta?.y);
+    const x = finiteNumber(delta?.x);
+    const y = finiteNumber(delta?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0)) {
       return;
     }
-    const [left, top] = target.getPosition();
-    target.setPosition(Math.round(left + x), Math.round(top + y), false);
+
+    try {
+      const bounds = target.getBounds();
+      if (!isFiniteBounds(bounds)) {
+        return;
+      }
+      const workArea = screen.getDisplayNearestPoint({
+        x: Math.round(bounds.x + bounds.width / 2),
+        y: Math.round(bounds.y + bounds.height / 2)
+      }).workArea;
+      const nextX = clamp(Math.round(bounds.x + x), workArea.x, Math.max(workArea.x, workArea.x + workArea.width - bounds.width));
+      const nextY = clamp(Math.round(bounds.y + y), workArea.y, Math.max(workArea.y, workArea.y + workArea.height - bounds.height));
+      target.setBounds({ ...bounds, x: nextX, y: nextY });
+    } catch (error) {
+      writeRuntimeLog("overlay:move-error", { message: error instanceof Error ? error.message : String(error) });
+    }
   });
   ipcMain.on("overlay:resize-by", (event, delta: { x: number; y: number; edge: OverlayResizeEdge }) => {
     const target = BrowserWindow.fromWebContents(event.sender);
     if (!target || target !== overlayWindow || target.isDestroyed()) {
       return;
     }
-    const x = Number(delta?.x);
-    const y = Number(delta?.y);
+    const x = finiteNumber(delta?.x);
+    const y = finiteNumber(delta?.y);
     const edge = delta?.edge;
     if (!Number.isFinite(x) || !Number.isFinite(y) || !isOverlayResizeEdge(edge)) {
       return;
     }
 
-    const bounds = target.getBounds();
-    const minSize = target.getMinimumSize();
-    let nextX = bounds.x;
-    let nextY = bounds.y;
-    let nextWidth = bounds.width;
-    let nextHeight = bounds.height;
+    try {
+      const bounds = target.getBounds();
+      if (!isFiniteBounds(bounds)) {
+        return;
+      }
+      const minSize = target.getMinimumSize();
+      const workArea = screen.getDisplayNearestPoint({
+        x: Math.round(bounds.x + bounds.width / 2),
+        y: Math.round(bounds.y + bounds.height / 2)
+      }).workArea;
+      let nextX = bounds.x;
+      let nextY = bounds.y;
+      let nextWidth = bounds.width;
+      let nextHeight = bounds.height;
 
-    if (edge.includes("e")) {
-      nextWidth += x;
-    }
-    if (edge.includes("s")) {
-      nextHeight += y;
-    }
-    if (edge.includes("w")) {
-      nextX += x;
-      nextWidth -= x;
-    }
-    if (edge.includes("n")) {
-      nextY += y;
-      nextHeight -= y;
-    }
-
-    if (nextWidth < minSize[0]) {
+      if (edge.includes("e")) {
+        nextWidth += x;
+      }
+      if (edge.includes("s")) {
+        nextHeight += y;
+      }
       if (edge.includes("w")) {
-        nextX -= minSize[0] - nextWidth;
+        nextX += x;
+        nextWidth -= x;
       }
-      nextWidth = minSize[0];
-    }
-    if (nextHeight < minSize[1]) {
       if (edge.includes("n")) {
-        nextY -= minSize[1] - nextHeight;
+        nextY += y;
+        nextHeight -= y;
       }
-      nextHeight = minSize[1];
-    }
 
-    target.setBounds({
-      x: Math.round(nextX),
-      y: Math.round(nextY),
-      width: Math.round(nextWidth),
-      height: Math.round(nextHeight)
-    });
+      if (nextWidth < minSize[0]) {
+        if (edge.includes("w")) {
+          nextX -= minSize[0] - nextWidth;
+        }
+        nextWidth = minSize[0];
+      }
+      if (nextHeight < minSize[1]) {
+        if (edge.includes("n")) {
+          nextY -= minSize[1] - nextHeight;
+        }
+        nextHeight = minSize[1];
+      }
+
+      nextWidth = clamp(Math.round(nextWidth), minSize[0], Math.max(minSize[0], workArea.width));
+      nextHeight = clamp(Math.round(nextHeight), minSize[1], Math.max(minSize[1], workArea.height));
+      nextX = clamp(Math.round(nextX), workArea.x, Math.max(workArea.x, workArea.x + workArea.width - nextWidth));
+      nextY = clamp(Math.round(nextY), workArea.y, Math.max(workArea.y, workArea.y + workArea.height - nextHeight));
+
+      target.setBounds({
+        x: nextX,
+        y: nextY,
+        width: nextWidth,
+        height: nextHeight
+      });
+    } catch (error) {
+      writeRuntimeLog("overlay:resize-error", { message: error instanceof Error ? error.message : String(error), edge });
+    }
   });
 }
 
 function isOverlayResizeEdge(edge: unknown): edge is OverlayResizeEdge {
   return typeof edge === "string" && /^(n|s|e|w|ne|nw|se|sw)$/.test(edge);
+}
+
+function finiteNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : Number.NaN;
+}
+
+function isFiniteBounds(bounds: Electron.Rectangle) {
+  return [bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite) && bounds.width > 0 && bounds.height > 0;
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max)) {
+    return 0;
+  }
+  return Math.min(Math.max(value, min), max);
 }
 
 async function repairKnowledgeIndexIfNeeded() {
