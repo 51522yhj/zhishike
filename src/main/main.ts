@@ -42,6 +42,7 @@ let llmCooldownMessage = "";
 let recorderOwnerWebContentsId: number | null = null;
 
 type OverlayResizeEdge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+const OVERLAY_VISIBLE_EDGE_PX = 72;
 
 type ConversationStreamFactory = (transcript: string) => {
   onDelta: (delta: string) => void;
@@ -654,8 +655,9 @@ function registerIpc() {
         x: Math.round(bounds.x + bounds.width / 2),
         y: Math.round(bounds.y + bounds.height / 2)
       }).workArea;
-      const nextX = clamp(Math.round(bounds.x + x), workArea.x, Math.max(workArea.x, workArea.x + workArea.width - bounds.width));
-      const nextY = clamp(Math.round(bounds.y + y), workArea.y, Math.max(workArea.y, workArea.y + workArea.height - bounds.height));
+      const positionRange = getOverlayPositionRange(workArea, bounds.width, bounds.height);
+      const nextX = clamp(Math.round(bounds.x + x), positionRange.minX, positionRange.maxX);
+      const nextY = clamp(Math.round(bounds.y + y), positionRange.minY, positionRange.maxY);
       target.setBounds({ ...bounds, x: nextX, y: nextY });
     } catch (error) {
       writeRuntimeLog("overlay:move-error", { message: error instanceof Error ? error.message : String(error) });
@@ -718,8 +720,9 @@ function registerIpc() {
 
       nextWidth = clamp(Math.round(nextWidth), minSize[0], Math.max(minSize[0], workArea.width));
       nextHeight = clamp(Math.round(nextHeight), minSize[1], Math.max(minSize[1], workArea.height));
-      nextX = clamp(Math.round(nextX), workArea.x, Math.max(workArea.x, workArea.x + workArea.width - nextWidth));
-      nextY = clamp(Math.round(nextY), workArea.y, Math.max(workArea.y, workArea.y + workArea.height - nextHeight));
+      const positionRange = getOverlayPositionRange(workArea, nextWidth, nextHeight);
+      nextX = clamp(Math.round(nextX), positionRange.minX, positionRange.maxX);
+      nextY = clamp(Math.round(nextY), positionRange.minY, positionRange.maxY);
 
       target.setBounds({
         x: nextX,
@@ -751,6 +754,17 @@ function clamp(value: number, min: number, max: number) {
     return 0;
   }
   return Math.min(Math.max(value, min), max);
+}
+
+function getOverlayPositionRange(workArea: Electron.Rectangle, width: number, height: number) {
+  const visibleWidth = Math.min(OVERLAY_VISIBLE_EDGE_PX, Math.max(1, Math.round(width)));
+  const visibleHeight = Math.min(OVERLAY_VISIBLE_EDGE_PX, Math.max(1, Math.round(height)));
+  return {
+    minX: workArea.x - Math.round(width) + visibleWidth,
+    maxX: workArea.x + workArea.width - visibleWidth,
+    minY: workArea.y - Math.round(height) + visibleHeight,
+    maxY: workArea.y + workArea.height - visibleHeight
+  };
 }
 
 async function repairKnowledgeIndexIfNeeded() {
